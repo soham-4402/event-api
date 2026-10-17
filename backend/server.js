@@ -1,31 +1,57 @@
-require("dotenv").config()
 
-const express = require("express")
-const mongoose = require("mongoose")
-const authRouter = require("./routes/auth.router")
+require("dotenv").config();
 
-const app = express()
+const express = require("express");
+const connectDB = require("./config/db");
 
-app.use(express.json())
+const authRoutes = require("./routes/auth.route");
+const eventRoutes = require("./routes/event.route");
+const bookingRoutes = require("./routes/booking.route");
 
+const app = express();
 
-app.use("/auth",authRouter)
+// Middleware
+app.use(express.json());
 
-async function connectDB() {
-    try {
-        
-        await mongoose.connect(process.env.MONGODB_URI);
-        console.log('Successfully connected to MongoDB using Native Driver!');
-        
-        
+// Health check
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Event Booking API is running",
+  });
+});
 
-    } catch (error) {
-        console.error('Connection error:', error);
+// API routes
+app.use("/api/auth", authRoutes);
+app.use("/api/events", eventRoutes);
+app.use("/api/bookings", bookingRoutes);
+
+// Handle unknown routes
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
+});
+
+// Start server after successful database connection
+const startServer = async () => {
+  try {
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is missing from .env");
     }
-}
 
+    await connectDB();
 
-app.listen(3000, () => {
-    console.log("Server is running on PORT 3000")
-    connectDB()
-})
+    const PORT = process.env.PORT || 5000;
+
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Server startup failed:", error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
